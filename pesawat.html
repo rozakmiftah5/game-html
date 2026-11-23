@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#050817">
+<title>OZ STRIKE — Space Shooter</title>
+<style>
+:root {
+    color-scheme: dark;
+    font-family: "Trebuchet MS", Arial, sans-serif;
+    --cyan: #62f4ff;
+    --pink: #ff5ca8;
+    --panel: rgba(8, 15, 38, .76);
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body {
+    background: #050817;
+    color: #f3fbff;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.hud {
+    position: fixed;
+    z-index: 2;
+    top: 18px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    pointer-events: none;
+}
+.brand, .stats, .hud-actions {
+    border: 1px solid rgba(112, 220, 255, .2);
+    background: var(--panel);
+    box-shadow: 0 0 24px rgba(33, 161, 255, .1), inset 0 0 20px rgba(65, 130, 255, .05);
+    backdrop-filter: blur(10px);
+}
+.brand { padding: 10px 15px; border-radius: 12px; }
+.brand strong { display: block; color: var(--cyan); font-size: 15px; letter-spacing: .2em; }
+.brand span { color: #94a8c9; font-size: 10px; letter-spacing: .16em; }
+.stats { display: flex; gap: 22px; padding: 10px 16px; border-radius: 12px; }
+.stat-label { display: block; color: #8ca3c7; font-size: 9px; letter-spacing: .18em; }
+.stat-value { display: block; margin-top: 3px; font-size: 17px; font-weight: 700; }
+#healthBar { width: 84px; height: 4px; margin-top: 6px; overflow: hidden; border-radius: 8px; background: #253149; }
+#healthFill { width: 100%; height: 100%; background: linear-gradient(90deg, #41f3b4, #68f5ff); transition: width .2s, background .2s; }
+.hud-actions { display: flex; gap: 7px; padding: 6px; border-radius: 12px; pointer-events: auto; }
+button {
+    border: 1px solid rgba(111, 218, 255, .36);
+    border-radius: 9px;
+    background: rgba(35, 67, 110, .42);
+    color: white;
+    font: inherit;
+    cursor: pointer;
+    transition: background .16s, transform .16s, box-shadow .16s;
+}
+button:hover { background: rgba(54, 117, 170, .65); box-shadow: 0 0 18px rgba(98, 244, 255, .2); }
+button:active { transform: scale(.96); }
+.icon-button { min-width: 39px; height: 36px; font-size: 17px; }
+.overlay {
+    position: fixed;
+    z-index: 4;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(ellipse at center, rgba(7, 17, 43, .64), rgba(2, 5, 16, .86));
+    transition: opacity .25s;
+}
+.overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.card {
+    width: min(460px, 100%);
+    padding: 36px 34px;
+    border: 1px solid rgba(98, 244, 255, .28);
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(15, 27, 58, .94), rgba(7, 12, 31, .94));
+    box-shadow: 0 0 80px rgba(34, 127, 255, .16), inset 0 0 40px rgba(84, 125, 255, .04);
+    text-align: center;
+}
+.eyebrow { color: var(--cyan); font-size: 10px; font-weight: 700; letter-spacing: .28em; }
+.card h1 { margin: 12px 0 8px; font-size: clamp(31px, 8vw, 48px); letter-spacing: .06em; line-height: 1; }
+.card h1 span { color: var(--cyan); text-shadow: 0 0 22px rgba(98, 244, 255, .65); }
+.card p { margin: 14px 0 22px; color: #a7b7d4; font-size: 14px; line-height: 1.65; }
+.primary-button { padding: 13px 27px; border-color: rgba(98, 244, 255, .68); background: linear-gradient(110deg, #167f9d, #375bc6); font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.help { margin-top: 19px; color: #7285a9; font-size: 11px; line-height: 1.7; }
+.touch-controls { position: fixed; z-index: 3; right: 18px; bottom: 18px; left: 18px; display: none; align-items: flex-end; justify-content: space-between; pointer-events: none; }
+.dpad { display: grid; grid-template-columns: repeat(3, 43px); grid-template-rows: repeat(2, 43px); gap: 5px; }
+.touch-button { width: 43px; height: 43px; border-radius: 14px; background: rgba(25, 54, 91, .68); font-size: 18px; pointer-events: auto; touch-action: none; }
+.touch-button[data-dir="up"] { grid-column: 2; grid-row: 1; }
+.touch-button[data-dir="left"] { grid-column: 1; grid-row: 2; }
+.touch-button[data-dir="down"] { grid-column: 2; grid-row: 2; }
+.touch-button[data-dir="right"] { grid-column: 3; grid-row: 2; }
+.fire-button { width: 72px; height: 72px; border-color: rgba(255, 92, 168, .66); border-radius: 50%; background: rgba(132, 38, 91, .7); color: #ffd5e8; font-size: 12px; font-weight: 700; letter-spacing: .12em; pointer-events: auto; touch-action: none; }
+@media (pointer: coarse), (max-width: 700px) {
+    .touch-controls { display: flex; }
+    .hud { top: 10px; left: 10px; right: 10px; }
+    .brand { display: none; }
+    .stats { gap: 12px; padding: 8px 10px; }
+    .stat-value { font-size: 14px; }
+    #healthBar { width: 62px; }
+    .hud-actions { padding: 4px; }
+    .icon-button { min-width: 34px; height: 32px; }
+}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Game pesawat OZ Strike"></canvas>
+
+<div class="hud">
+    <div class="brand"><strong>OZ STRIKE</strong><span>DEEP SPACE DEFENSE</span></div>
+    <div class="stats" aria-live="polite">
+        <div><span class="stat-label">SKOR</span><span class="stat-value" id="score">000000</span></div>
+        <div><span class="stat-label">NYAWA</span><span class="stat-value" id="lives">3</span><div id="healthBar"><div id="healthFill"></div></div></div>
+        <div><span class="stat-label">LEVEL</span><span class="stat-value" id="level">01</span></div>
+        <div><span class="stat-label">WAKTU</span><span class="stat-value" id="time">01:00</span></div>
+    </div>
+    <div class="hud-actions">
+        <button class="icon-button" id="soundButton" aria-label="Matikan suara" title="Suara">♫</button>
+        <button class="icon-button" id="pauseButton" aria-label="Jeda permainan" title="Jeda">Ⅱ</button>
+    </div>
+</div>
+
+<div class="overlay" id="overlay">
+    <div class="card">
+        <div class="eyebrow" id="overlayEyebrow">MISI PENYELAMATAN GALAKSI</div>
+        <h1 id="overlayTitle">OZ <span>STRIKE</span></h1>
+        <p id="overlayText">Bantu Brio hitam menghadapi ancaman meteor dan alien. Siap menjadi sopir terbaik?</p>
+        <button class="primary-button" id="startButton">MULAI MISI</button>
+        <div class="help">GERAK: WASD / TOMBOL PANAH &nbsp; • &nbsp; TEMBAK: SPACE<br>HP &nbsp; • &nbsp; Suara dibuat langsung di dalam game</div>
+    </div>
+</div>
+
+<div class="touch-controls" aria-label="Kontrol layar sentuh">
+    <div class="dpad">
+        <button class="touch-button" data-dir="up" aria-label="Atas">▲</button>
+        <button class="touch-button" data-dir="left" aria-label="Kiri">◀</button>
+        <button class="touch-button" data-dir="down" aria-label="Bawah">▼</button>
+        <button class="touch-button" data-dir="right" aria-label="Kanan">▶</button>
+    </div>
+    <button class="fire-button" id="fireButton" aria-label="Tembak">TEMBAK</button>
+</div>
+
+<script>
+(() => {
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
+    const livesElement = document.getElementById("lives");
+    const levelElement = document.getElementById("level");
+    const timeElement = document.getElementById("time");
+    const healthFill = document.getElementById("healthFill");
+    const overlay = document.getElementById("overlay");
+    const overlayEyebrow = document.getElementById("overlayEyebrow");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayText = document.getElementById("overlayText");
+    const startButton = document.getElementById("startButton");
+    const pauseButton = document.getElementById("pauseButton");
+    const soundButton = document.getElementById("soundButton");
+
+    const keys = new Set();
+    const stars = [];
+    const bullets = [];
+    const enemyBullets = [];
+    const enemies = [];
+    const meteors = [];
+    const particles = [];
+    const bossTypes = [
+        { name: "IRON WRAITH", color: "#bd3d76", accent: "#ffe28a" },
+        { name: "VOID MANTIS", color: "#239d91", accent: "#a4ffe2" },
+        { name: "STAR DEVOURER", color: "#514fc0", accent: "#ffc86b" }
+    ];
+    const enemyTypes = {
+        scout: { color: "#ff5d63", accent: "#ffe18a", glow: "#ff514f", radius: 15, hp: 1, speed: 175, score: 15 },
+        gunner: { color: "#a969f5", accent: "#f0caff", glow: "#bb62ff", radius: 19, hp: 2, speed: 108, score: 25 },
+        hunter: { color: "#27c9bb", accent: "#b4fff3", glow: "#25ebd8", radius: 18, hp: 2, speed: 138, score: 30 },
+        tank: { color: "#d98235", accent: "#ffe093", glow: "#ff9d42", radius: 25, hp: 3, speed: 78, score: 45 }
+    };
+    const planetThemes = [
+        { name: "AZURA", sky: ["#07152d", "#0b3152", "#071522"], nebula: "rgba(35,180,255,.2)", haze: "rgba(41,90,178,.09)", stars: "#b7eeff", planet: ["#a0efff", "#3273b3", "#142e5b"], glow: "rgba(46,195,255,.35)", ring: null },
+        { name: "EMBER", sky: ["#220d18", "#3b1820", "#160c17"], nebula: "rgba(255,90,40,.19)", haze: "rgba(177,55,49,.1)", stars: "#ffd0a1", planet: ["#ffd08a", "#b94c38", "#4c2031"], glow: "rgba(255,111,59,.34)", ring: "#ffb36b" },
+        { name: "FROST", sky: ["#091c32", "#173852", "#081729"], nebula: "rgba(104,210,255,.2)", haze: "rgba(84,140,200,.11)", stars: "#d2f7ff", planet: ["#e0ffff", "#71bcd1", "#244e76"], glow: "rgba(105,220,255,.34)", ring: "#a8eeff" },
+        { name: "VERDANT", sky: ["#061f1b", "#104035", "#091b26"], nebula: "rgba(61,223,148,.17)", haze: "rgba(36,139,112,.1)", stars: "#b8ffcf", planet: ["#b6f59c", "#438b5b", "#174442"], glow: "rgba(85,255,170,.3)", ring: null },
+        { name: "VIOLET", sky: ["#160d31", "#302054", "#0d102c"], nebula: "rgba(179,94,255,.21)", haze: "rgba(95,65,191,.11)", stars: "#e5c7ff", planet: ["#ffd2f0", "#995bc6", "#372c74"], glow: "rgba(189,104,255,.34)", ring: "#e5b5ff" }
+    ];
+    const playerImage = new Image();
+    playerImage.addEventListener("error", () => console.error("Gagal memuat sprite pesawat: oz-strike-player.png"));
+    playerImage.src = "oz-strike-player.png";
+    let width = innerWidth;
+    let height = innerHeight;
+    let dpr = 1;
+    let lastTime = 0;
+    let score = 0;
+    let level = 1;
+    let levelTime = 60;
+    let timerDisplay = "";
+    let elapsed = 0;
+    let spawnTimer = 0;
+    let meteorTimer = 2.5;
+    let shootTimer = 0;
+    let boss = null;
+    let state = "ready";
+    let soundEnabled = true;
+    let audioContext = null;
+    let screenFlash = 0;
+    let shake = 0;
+    let bannerText = "";
+    let bannerTime = 0;
+    const player = { x: 120, y: height / 2, radius: 23, hp: 100, lives: 3, invulnerable: 0 };
+
+    function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        player.x = Math.min(Math.max(player.x, 62), width - 58);
+        player.y = Math.min(Math.max(player.y, 70), height - 50);
+    }
+
+    function createStars() {
+        stars.length = 0;
+        for (let i = 0; i < Math.max(70, Math.floor(width * height / 8500)); i++) {
+            stars.push({ x: Math.random() * width, y: Math.random() * height, size: Math.random() * 1.7 + .25, speed: Math.random() * 95 + 20, alpha: Math.random() * .65 + .25 });
+        }
+    }
+
+    function playTone(frequency, duration, type, volume, slide) {
+        if (!soundEnabled) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioContext) audioContext = new AudioContextClass();
+        if (audioContext.state === "suspended") audioContext.resume();
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const now = audioContext.currentTime;
+        oscillator.type = type || "sine";
+        oscillator.frequency.setValueAtTime(frequency, now);
+        if (slide) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, frequency * slide), now + duration);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(.001, now + duration);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+    }
+
+    function updateHud() {
+        scoreElement.textContent = String(score).padStart(6, "0");
+        livesElement.textContent = String(player.lives);
+        healthFill.style.width = player.hp + "%";
+        healthFill.style.background = player.hp < 35 ? "linear-gradient(90deg,#ff4e70,#ff9a67)" : "linear-gradient(90deg,#41f3b4,#68f5ff)";
+        levelElement.textContent = String(level).padStart(2, "0");
+        updateTimerHud();
+    }
+
+    function updateTimerHud() {
+        const seconds = Math.max(0, Math.ceil(levelTime));
+        const nextTimerDisplay = boss ? "BOSS" : String(Math.floor(seconds / 60)).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
+        if (nextTimerDisplay !== timerDisplay) {
+            timerDisplay = nextTimerDisplay;
+            timeElement.textContent = timerDisplay;
+        }
+    }
+
+    function levelDuration(levelNumber) {
+        return 60 + (levelNumber - 1) * 15;
+    }
+
+    function startGame() {
+        if (state === "playing") return;
+        score = 0;
+        level = 1;
+        levelTime = levelDuration(level);
+        timerDisplay = "";
+        elapsed = 0;
+        spawnTimer = .7;
+        meteorTimer = 2.5;
+        shootTimer = 0;
+        boss = null;
+        bannerText = "LEVEL 01  •  PLANET " + planetThemes[0].name;
+        bannerTime = 3.2;
+        bullets.length = 0;
+        enemyBullets.length = 0;
+        enemies.length = 0;
+        meteors.length = 0;
+        particles.length = 0;
+        player.x = Math.min(120, width * .28);
+        player.y = height / 2;
+        player.hp = 100;
+        player.lives = 3;
+        player.invulnerable = 1.5;
+        state = "playing";
+        overlayEyebrow.textContent = "MISI PENYELAMATAN GALAKSI";
+        overlayTitle.innerHTML = "OZ <span>STRIKE</span>";
+        overlayText.textContent = "Bantu Brio hitam menghadapi ancaman meteor dan alien. Siap menjadi sopir terbaik?";
+        overlay.classList.add("hidden");
+        pauseButton.textContent = "Ⅱ";
+        lastTime = performance.now();
+        updateHud();
+        playTone(420, .18, "sine", .08, 1.8);
+    }
+
+    function showEndScreen() {
+        state = "over";
+        overlay.classList.remove("hidden");
+        overlayEyebrow.textContent = "SINYAL PESAWAT TERPUTUS";
+        overlayTitle.innerHTML = "GAME <span>OVER</span>";
+        overlayText.textContent = "Kamu mencapai level " + level + " dengan skor " + score + ". Galaksi menunggumu kembali, pilot.";
+        startButton.textContent = "MAIN LAGI";
+        playTone(180, .55, "sawtooth", .08, .45);
+    }
+
+    function togglePause() {
+        if (state === "playing") {
+            state = "paused";
+            overlayEyebrow.textContent = "MISI DIJEDA";
+            overlayTitle.innerHTML = "TARIK <span>NAPAS</span>";
+            overlayText.textContent = "Armada menunggu. Lanjutkan saat kamu siap.";
+            startButton.textContent = "LANJUTKAN";
+            overlay.classList.remove("hidden");
+            pauseButton.textContent = "▶";
+        } else if (state === "paused") {
+            state = "playing";
+            overlay.classList.add("hidden");
+            pauseButton.textContent = "Ⅱ";
+            lastTime = performance.now();
+        }
+    }
+
+    function burst(x, y, color, count, force) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = (Math.random() * .7 + .3) * force;
+            particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: Math.random() * .45 + .3, maxLife: .75, size: Math.random() * 3 + 1, color });
+        }
+    }
+
+    function spawnEnemy() {
+        const roll = Math.random();
+        const kind = roll < .3 ? "scout" : roll < .58 ? "gunner" : roll < .82 ? "hunter" : "tank";
+        const type = enemyTypes[kind];
+        const extraHealth = kind === "scout" ? 0 : Math.floor((level - 1) / (kind === "tank" ? 3 : 5));
+        const y = Math.random() * (height - 110) + 55;
+        enemies.push({
+            x: width + 40,
+            y,
+            baseY: y,
+            kind,
+            color: type.color,
+            accent: type.accent,
+            glow: type.glow,
+            radius: type.radius,
+            hp: type.hp + extraHealth,
+            maxHp: type.hp + extraHealth,
+            speed: type.speed + (level - 1) * (kind === "scout" ? 7 : 9) + Math.min(score / 50, 60),
+            scoreValue: type.score,
+            phase: Math.random() * 8,
+            fireTimer: .8 + Math.random() * 1.2,
+            skillTimer: 2 + Math.random() * 1.4,
+            dashTime: 0,
+            heavy: kind === "tank"
+        });
+    }
+
+    function spawnMeteor() {
+        const radius = 15 + Math.random() * 18;
+        const vertices = Array.from({ length: 10 }, () => .72 + Math.random() * .32);
+        meteors.push({
+            x: width + radius,
+            y: 45 + Math.random() * Math.max(1, height - 90),
+            radius,
+            speed: 105 + level * 13 + Math.random() * 35,
+            rotation: Math.random() * Math.PI * 2,
+            spin: (Math.random() - .5) * 1.8,
+            vertices
+        });
+    }
+
+    function spawnBoss() {
+        const type = (level - 1) % bossTypes.length;
+        const template = bossTypes[type];
+        const hp = 42 + (level - 1) * 18;
+        boss = {
+            type,
+            name: template.name,
+            color: template.color,
+            accent: template.accent,
+            x: width + 130,
+            y: height / 2,
+            hp,
+            maxHp: hp,
+            fireTimer: .8,
+            phase: 0,
+            volley: 0
+        };
+        enemies.length = 0;
+        meteors.length = 0;
+        bannerText = "BOSS  •  " + boss.name;
+        bannerTime = 3;
+        playTone(100, .55, "sawtooth", .06, .55);
+        updateHud();
+    }
+
+    function advanceLevel() {
+        score += 250 + level * 50;
+        level++;
+        levelTime = levelDuration(level);
+        timerDisplay = "";
+        boss = null;
+        enemies.length = 0;
+        meteors.length = 0;
+        enemyBullets.length = 0;
+        bullets.length = 0;
+        spawnTimer = 1;
+        meteorTimer = 2.5;
+        player.x = Math.min(120, width * .28);
+        player.y = height / 2;
+        player.hp = Math.min(100, player.hp + 35);
+        player.invulnerable = 2;
+        bannerText = "LEVEL " + String(level).padStart(2, "0") + "  •  PLANET " + planetThemes[(level - 1) % planetThemes.length].name;
+        bannerTime = 3.2;
+        updateHud();
+        playTone(520, .42, "sine", .08, 1.6);
+    }
+
+    function firePlayerBullet() {
+        bullets.push({ x: player.x + 39, y: player.y - 5, vx: 590, vy: 0, radius: 4, damage: 1 });
+        bullets.push({ x: player.x + 32, y: player.y + 7, vx: 540, vy: 0, radius: 2.5, damage: 1 });
+        playTone(670, .07, "square", .018, .72);
+    }
+
+    function hitPlayer(damage) {
+        if (player.invulnerable > 0) return;
+        player.hp -= damage;
+        player.invulnerable = .75;
+        screenFlash = .2;
+        shake = 8;
+        burst(player.x, player.y, "#62f4ff", 14, 150);
+        playTone(145, .2, "sawtooth", .055, .5);
+        if (player.hp <= 0) {
+            player.lives--;
+            if (player.lives <= 0) {
+                player.hp = 0;
+                updateHud();
+                showEndScreen();
+                return;
+            }
+            player.hp = 100;
+            player.x = Math.min(120, width * .28);
+            player.y = height / 2;
+            player.invulnerable = 2;
+            burst(player.x, player.y, "#a2faff", 25, 220);
+        }
+        updateHud();
+    }
+
+    function update(dt) {
+        elapsed += dt;
+        player.invulnerable = Math.max(0, player.invulnerable - dt);
+        shootTimer -= dt;
+        if (keys.has("arrowup") || keys.has("w") || keys.has("up")) player.y -= 300 * dt;
+        if (keys.has("arrowdown") || keys.has("s") || keys.has("down")) player.y += 300 * dt;
+        if (keys.has("arrowleft") || keys.has("a") || keys.has("left")) player.x -= 300 * dt;
+        if (keys.has("arrowright") || keys.has("d") || keys.has("right")) player.x += 300 * dt;
+        player.x = Math.max(36, Math.min(width - 48, player.x));
+        player.y = Math.max(48, Math.min(height - 42, player.y));
+        if ((keys.has(" ") || keys.has("space")) && shootTimer <= 0) {
+            firePlayerBullet();
+            shootTimer = .19;
+        }
+
+        for (const star of stars) {
+            star.x -= star.speed * dt;
+            if (star.x < -2) { star.x = width + 2; star.y = Math.random() * height; }
+        }
+        if (!boss) {
+            levelTime -= dt;
+            if (levelTime <= 0) {
+                levelTime = 0;
+                spawnBoss();
+            } else {
+                spawnTimer -= dt;
+                if (spawnTimer <= 0) {
+                    spawnEnemy();
+                    spawnTimer = Math.max(.38, 1.12 - (level - 1) * .07) + Math.random() * .35;
+                }
+                meteorTimer -= dt;
+                if (meteorTimer <= 0 && meteors.length < 5) {
+                    spawnMeteor();
+                    meteorTimer = Math.max(1.7, 4.5 - (level - 1) * .12) + Math.random() * 1.5;
+                }
+            }
+            updateTimerHud();
+        }
+
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            if (enemy.kind === "scout") {
+                enemy.x -= enemy.speed * dt;
+                enemy.y = Math.max(35, Math.min(height - 35, enemy.baseY + Math.sin(elapsed * 4 + enemy.phase) * 78));
+            } else if (enemy.kind === "hunter") {
+                enemy.skillTimer -= dt;
+                if (enemy.skillTimer <= 0 && enemy.dashTime <= 0) {
+                    enemy.dashTime = .52;
+                    enemy.skillTimer = Math.max(1.2, 2.8 - (level - 1) * .06);
+                    burst(enemy.x, enemy.y, enemy.accent, 7, 75);
+                }
+                const dashing = enemy.dashTime > 0;
+                enemy.x -= enemy.speed * (dashing ? 2.45 : 1) * dt;
+                enemy.y += Math.sign(player.y - enemy.y) * Math.min(Math.abs(player.y - enemy.y), (dashing ? 210 : 70) * dt);
+                enemy.dashTime = Math.max(0, enemy.dashTime - dt);
+            } else {
+                enemy.x -= enemy.speed * dt;
+                const weave = enemy.kind === "gunner" ? 26 : 15;
+                enemy.y = Math.max(35, Math.min(height - 35, enemy.baseY + Math.sin(elapsed * 1.8 + enemy.phase) * weave));
+            }
+            enemy.fireTimer -= dt;
+            if (enemy.fireTimer <= 0 && enemy.x < width - 70 && (enemy.kind === "gunner" || enemy.kind === "tank")) {
+                const originX = enemy.x - enemy.radius;
+                const speed = 250 + level * 13;
+                if (enemy.kind === "gunner") {
+                    const targetX = Math.min(player.x, originX - 80);
+                    const angle = Math.atan2(player.y - enemy.y, targetX - originX);
+                    for (let spread = -1; spread <= 1; spread += 2) {
+                        const shotAngle = angle + spread * .08;
+                        enemyBullets.push({ x: originX, y: enemy.y, vx: Math.cos(shotAngle) * speed, vy: Math.sin(shotAngle) * speed, radius: 5, color: enemy.accent });
+                    }
+                    enemy.fireTimer = Math.max(.75, 1.9 - (level - 1) * .04) + Math.random() * .4;
+                } else {
+                    for (let spread = -1; spread <= 1; spread++) {
+                        enemyBullets.push({ x: originX, y: enemy.y + spread * 10, vx: -speed, vy: spread * 78 + (player.y - enemy.y) * .12, radius: 6, color: enemy.accent });
+                    }
+                    enemy.fireTimer = Math.max(.85, 2.5 - (level - 1) * .05) + Math.random() * .45;
+                }
+            }
+            if (enemy.x < -45) { enemies.splice(i, 1); continue; }
+            if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < enemy.radius + player.radius) {
+                enemies.splice(i, 1);
+                burst(enemy.x, enemy.y, enemy.accent, 15, 150);
+                hitPlayer(enemy.kind === "tank" ? 40 : 30);
+            }
+        }
+
+        for (let i = meteors.length - 1; i >= 0; i--) {
+            const meteor = meteors[i];
+            meteor.x -= meteor.speed * dt;
+            meteor.rotation += meteor.spin * dt;
+            if (meteor.x < -meteor.radius) { meteors.splice(i, 1); continue; }
+            if (Math.hypot(meteor.x - player.x, meteor.y - player.y) < meteor.radius + player.radius) {
+                meteors.splice(i, 1);
+                burst(meteor.x, meteor.y, "#b8a89b", 18, 165);
+                hitPlayer(28);
+            }
+        }
+
+        if (boss) {
+            boss.phase += dt;
+            boss.x += (width - 100 - boss.x) * Math.min(1, dt * .7);
+            boss.y = height / 2 + Math.sin(boss.phase * 1.1) * Math.min(140, height * .22);
+            boss.fireTimer -= dt;
+            if (boss.fireTimer <= 0) {
+                const originX = boss.x - 56;
+                const speed = 280 + level * 18;
+                if (boss.type === 0) {
+                    for (let i = -2; i <= 2; i++) enemyBullets.push({ x: originX, y: boss.y + i * 16, vx: -speed, vy: i * 78 + (player.y - boss.y) * .12, radius: 7, color: boss.accent });
+                } else if (boss.type === 1) {
+                    const targetX = Math.min(player.x, originX - 100);
+                    const angle = Math.atan2(player.y - boss.y, targetX - originX);
+                    for (let i = -1; i <= 1; i++) {
+                        const shotAngle = angle + i * .2;
+                        enemyBullets.push({ x: originX, y: boss.y, vx: Math.cos(shotAngle) * speed, vy: Math.sin(shotAngle) * speed, radius: 7, color: boss.accent });
+                    }
+                } else {
+                    for (let i = -2; i <= 2; i++) enemyBullets.push({ x: originX, y: boss.y + i * 24, vx: -speed, vy: i * 105 + (player.y - boss.y) * .16, radius: 8, color: boss.accent });
+                    if (boss.volley % 2 === 0) enemyBullets.push({ x: originX, y: boss.y, vx: -speed * 1.12, vy: (player.y - boss.y) * .45, radius: 6, color: "#ff6d97" });
+                }
+                boss.volley++;
+                boss.fireTimer = Math.max(.42, 1.1 - (level - 1) * .055);
+            }
+        }
+
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            const bullet = bullets[i];
+            bullet.x += bullet.vx * dt;
+            if (bullet.x > width + 30) { bullets.splice(i, 1); continue; }
+            let hit = false;
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
+                if (Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y) < enemy.radius + bullet.radius) {
+                    bullets.splice(i, 1);
+                    enemy.hp--;
+                    burst(bullet.x, bullet.y, enemy.accent, 4, 80);
+                    if (enemy.hp <= 0) {
+                        enemies.splice(j, 1);
+                        score += enemy.scoreValue;
+                        burst(enemy.x, enemy.y, enemy.color, 22, 185);
+                        playTone(enemy.heavy ? 190 : 260, .16, "triangle", .045, .48);
+                        updateHud();
+                    }
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit && boss && Math.hypot(bullet.x - boss.x, bullet.y - boss.y) < 64 + bullet.radius) {
+                bullets.splice(i, 1);
+                hit = true;
+                boss.hp--;
+                if (boss.hp <= 0) {
+                    const defeatedBoss = boss;
+                    burst(defeatedBoss.x, defeatedBoss.y, defeatedBoss.accent, 70, 260);
+                    advanceLevel();
+                }
+            }
+            if (!hit) {
+                for (let j = meteors.length - 1; j >= 0; j--) {
+                    const meteor = meteors[j];
+                    if (Math.hypot(bullet.x - meteor.x, bullet.y - meteor.y) < meteor.radius + bullet.radius) {
+                        bullets.splice(i, 1);
+                        meteors.splice(j, 1);
+                        score += 10;
+                        burst(meteor.x, meteor.y, "#c8bbb0", 12, 125);
+                        updateHud();
+                        break;
+                    }
+                }
+            }
+        }
+
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            const bullet = enemyBullets[i];
+            bullet.x += bullet.vx * dt;
+            bullet.y += bullet.vy * dt;
+            if (bullet.x < -15 || bullet.y < -15 || bullet.y > height + 15) { enemyBullets.splice(i, 1); continue; }
+            if (Math.hypot(bullet.x - player.x, bullet.y - player.y) < bullet.radius + player.radius - 4) {
+                enemyBullets.splice(i, 1);
+                hitPlayer(18);
+            }
+        }
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const particle = particles[i];
+            particle.x += particle.vx * dt;
+            particle.y += particle.vy * dt;
+            particle.vx *= .985;
+            particle.vy *= .985;
+            particle.life -= dt;
+            if (particle.life <= 0) particles.splice(i, 1);
+        }
+        screenFlash = Math.max(0, screenFlash - dt);
+        shake = Math.max(0, shake - 24 * dt);
+        bannerTime = Math.max(0, bannerTime - dt);
+    }
+
+    function drawBackground() {
+        const theme = planetThemes[(level - 1) % planetThemes.length];
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, theme.sky[0]);
+        gradient.addColorStop(.52, theme.sky[1]);
+        gradient.addColorStop(1, theme.sky[2]);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+        const nebula = ctx.createRadialGradient(width * .68, height * .48, 5, width * .68, height * .48, Math.max(width, height) * .62);
+        nebula.addColorStop(0, theme.nebula);
+        nebula.addColorStop(.52, theme.haze);
+        nebula.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = nebula;
+        ctx.fillRect(0, 0, width, height);
+        const planetX = width * .78;
+        const planetY = height * .34;
+        const planetRadius = Math.min(width, height) * .14;
+        if (theme.ring) {
+            ctx.save();
+            ctx.translate(planetX, planetY);
+            ctx.rotate(-.2);
+            ctx.globalAlpha = .3;
+            ctx.strokeStyle = theme.ring;
+            ctx.lineWidth = Math.max(3, planetRadius * .09);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, planetRadius * 1.65, planetRadius * .48, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        const globe = ctx.createRadialGradient(planetX - planetRadius * .35, planetY - planetRadius * .35, planetRadius * .08, planetX, planetY, planetRadius);
+        globe.addColorStop(0, theme.planet[0]);
+        globe.addColorStop(.55, theme.planet[1]);
+        globe.addColorStop(1, theme.planet[2]);
+        ctx.save();
+        ctx.globalAlpha = .58;
+        ctx.shadowBlur = 34;
+        ctx.shadowColor = theme.glow;
+        ctx.fillStyle = globe;
+        ctx.beginPath();
+        ctx.arc(planetX, planetY, planetRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        for (const star of stars) {
+            ctx.globalAlpha = star.alpha * (.7 + Math.sin(elapsed * 2 + star.y) * .25);
+            ctx.fillStyle = star.size > 1.4 ? theme.stars : "#8095d0";
+            ctx.fillRect(star.x, star.y, star.size, star.size);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function drawShip() {
+        if (player.invulnerable > 0 && Math.floor(elapsed * 13) % 2 === 0) return;
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        if (playerImage.complete && playerImage.naturalWidth > 0) {
+            ctx.rotate(Math.PI / 2);
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = "#48dfff";
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(playerImage, -42, -42, 84, 84);
+            ctx.restore();
+            return;
+        }
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = "#48dfff";
+        ctx.fillStyle = "#6ef3ff";
+        ctx.beginPath();
+        ctx.moveTo(30, 0);
+        ctx.lineTo(-14, -17);
+        ctx.lineTo(-8, -5);
+        ctx.lineTo(-21, 0);
+        ctx.lineTo(-8, 5);
+        ctx.lineTo(-14, 17);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#ecfeff";
+        ctx.beginPath();
+        ctx.moveTo(15, 0);
+        ctx.lineTo(-9, -6);
+        ctx.lineTo(-5, 0);
+        ctx.lineTo(-9, 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#ff9f61";
+        ctx.globalAlpha = .7 + Math.random() * .3;
+        ctx.beginPath();
+        ctx.moveTo(-14, -5);
+        ctx.lineTo(-28 - Math.random() * 12, 0);
+        ctx.lineTo(-14, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawMeteor(meteor) {
+        ctx.save();
+        ctx.translate(meteor.x, meteor.y);
+        ctx.rotate(meteor.rotation);
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "rgba(255,153,97,.32)";
+        ctx.fillStyle = "#77717a";
+        ctx.strokeStyle = "#b0a7a3";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < meteor.vertices.length; i++) {
+            const angle = i / meteor.vertices.length * Math.PI * 2;
+            const radius = meteor.radius * meteor.vertices[i];
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#514c56";
+        ctx.beginPath();
+        ctx.arc(-meteor.radius * .25, -meteor.radius * .18, meteor.radius * .19, 0, Math.PI * 2);
+        ctx.arc(meteor.radius * .28, meteor.radius * .2, meteor.radius * .12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawEnemy(enemy) {
+        ctx.save();
+        ctx.translate(enemy.x, enemy.y);
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = enemy.glow;
+        ctx.fillStyle = enemy.color;
+        ctx.beginPath();
+        if (enemy.kind === "scout") {
+            ctx.moveTo(-enemy.radius, 0);
+            ctx.lineTo(-enemy.radius * .2, -enemy.radius * .8);
+            ctx.lineTo(enemy.radius, -enemy.radius);
+            ctx.lineTo(enemy.radius * .55, 0);
+            ctx.lineTo(enemy.radius, enemy.radius);
+            ctx.lineTo(-enemy.radius * .2, enemy.radius * .8);
+        } else if (enemy.kind === "gunner") {
+            ctx.moveTo(-enemy.radius, 0);
+            ctx.lineTo(-enemy.radius * .55, -enemy.radius);
+            ctx.lineTo(enemy.radius * .55, -enemy.radius * .75);
+            ctx.lineTo(enemy.radius, 0);
+            ctx.lineTo(enemy.radius * .55, enemy.radius * .75);
+            ctx.lineTo(-enemy.radius * .55, enemy.radius);
+        } else if (enemy.kind === "hunter") {
+            ctx.moveTo(-enemy.radius, 0);
+            ctx.lineTo(-enemy.radius * .1, -enemy.radius);
+            ctx.lineTo(enemy.radius, -enemy.radius * .48);
+            ctx.lineTo(enemy.radius * .55, 0);
+            ctx.lineTo(enemy.radius, enemy.radius * .48);
+            ctx.lineTo(-enemy.radius * .1, enemy.radius);
+        } else {
+            ctx.moveTo(-enemy.radius, -enemy.radius * .68);
+            ctx.lineTo(-enemy.radius * .45, -enemy.radius);
+            ctx.lineTo(enemy.radius * .72, -enemy.radius);
+            ctx.lineTo(enemy.radius, -enemy.radius * .55);
+            ctx.lineTo(enemy.radius, enemy.radius * .55);
+            ctx.lineTo(enemy.radius * .72, enemy.radius);
+            ctx.lineTo(-enemy.radius * .45, enemy.radius);
+            ctx.lineTo(-enemy.radius, enemy.radius * .68);
+        }
+        ctx.closePath();
+        ctx.fill();
+        if (enemy.kind === "hunter" && enemy.dashTime > 0) {
+            ctx.strokeStyle = enemy.accent;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = .55;
+            ctx.beginPath();
+            ctx.moveTo(enemy.radius * .45, 0);
+            ctx.lineTo(enemy.radius + 22, 0);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = enemy.accent;
+        ctx.beginPath();
+        ctx.arc(-enemy.radius * .25, 0, enemy.kind === "tank" ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        if (enemy.hp < enemy.maxHp || enemy.kind === "tank") {
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#36263b";
+            ctx.fillRect(-enemy.radius, -enemy.radius - 8, enemy.radius * 2, 3);
+            ctx.fillStyle = enemy.accent;
+            ctx.fillRect(-enemy.radius, -enemy.radius - 8, enemy.radius * 2 * enemy.hp / enemy.maxHp, 3);
+        }
+        ctx.restore();
+    }
+
+    function drawBoss() {
+        if (!boss) return;
+        ctx.save();
+        ctx.translate(boss.x, boss.y);
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = boss.accent;
+        ctx.fillStyle = boss.color;
+        ctx.strokeStyle = boss.accent;
+        ctx.lineWidth = 3;
+        if (boss.type === 0) {
+            ctx.beginPath();
+            ctx.moveTo(65, 0);
+            ctx.lineTo(32, -40);
+            ctx.lineTo(-32, -53);
+            ctx.lineTo(-67, -28);
+            ctx.lineTo(-49, 0);
+            ctx.lineTo(-67, 28);
+            ctx.lineTo(-32, 53);
+            ctx.lineTo(32, 40);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = boss.accent;
+            ctx.beginPath();
+            ctx.arc(-24, -15, 7, 0, Math.PI * 2);
+            ctx.arc(-24, 15, 7, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (boss.type === 1) {
+            ctx.beginPath();
+            ctx.moveTo(65, 0);
+            ctx.lineTo(10, -23);
+            ctx.lineTo(-18, -62);
+            ctx.lineTo(-31, -24);
+            ctx.lineTo(-64, -42);
+            ctx.lineTo(-43, 0);
+            ctx.lineTo(-64, 42);
+            ctx.lineTo(-31, 24);
+            ctx.lineTo(-18, 62);
+            ctx.lineTo(10, 23);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = boss.accent;
+            ctx.beginPath();
+            ctx.arc(-22, 0, 9, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.ellipse(-5, 0, 52, 39, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(-5, 0, 65, 48, -.22, 0, Math.PI * 2);
+            ctx.stroke();
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-44, i * 18);
+                ctx.lineTo(-76, i * 36 + Math.sin(boss.phase * 2 + i) * 10);
+                ctx.stroke();
+            }
+            ctx.fillStyle = boss.accent;
+            ctx.beginPath();
+            ctx.arc(5, 0, 11, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+        ctx.fillStyle = "rgba(10,12,30,.8)";
+        ctx.fillRect(width / 2 - 105, 78, 210, 8);
+        ctx.fillStyle = boss.accent;
+        ctx.fillRect(width / 2 - 105, 78, 210 * boss.hp / boss.maxHp, 8);
+        ctx.fillStyle = "#ffe7f1";
+        ctx.font = "10px Trebuchet MS, Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(boss.name + "  •  LEVEL " + String(level).padStart(2, "0"), width / 2, 72);
+    }
+
+    function draw() {
+        ctx.save();
+        if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+        drawBackground();
+        for (const meteor of meteors) drawMeteor(meteor);
+        for (const bullet of bullets) {
+            ctx.shadowBlur = 13;
+            ctx.shadowColor = "#67f6ff";
+            ctx.fillStyle = "#ddffff";
+            ctx.fillRect(bullet.x - 7, bullet.y - 2, 15, 4);
+        }
+        ctx.shadowBlur = 0;
+        for (const bullet of enemyBullets) {
+            ctx.beginPath();
+            ctx.fillStyle = bullet.color;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = bullet.color;
+            ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        for (const enemy of enemies) drawEnemy(enemy);
+        drawBoss();
+        drawShip();
+        if (bannerTime > 0) {
+            ctx.globalAlpha = Math.min(1, bannerTime);
+            ctx.fillStyle = "#ecfbff";
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = "#62f4ff";
+            ctx.font = "bold 18px Trebuchet MS, Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(bannerText, width / 2, height * .3);
+            ctx.shadowBlur = 0;
+        }
+        for (const particle of particles) {
+            ctx.globalAlpha = Math.min(1, particle.life / .22);
+            ctx.fillStyle = particle.color;
+            ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+        }
+        ctx.globalAlpha = 1;
+        if (screenFlash > 0) {
+            ctx.fillStyle = "rgba(255,75,115," + Math.min(.25, screenFlash) + ")";
+            ctx.fillRect(0, 0, width, height);
+        }
+        ctx.restore();
+    }
+
+    function frame(time) {
+        const dt = Math.min((time - lastTime) / 1000, .04);
+        lastTime = time;
+        if (state === "playing") update(dt);
+        draw();
+        requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("resize", () => { resize(); createStars(); });
+    window.addEventListener("keydown", event => {
+        const key = event.key.toLowerCase();
+        if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
+        keys.add(key);
+        if ((key === "enter" || key === " ") && (state === "ready" || state === "over")) startGame();
+        if ((key === "p" || key === "escape") && (state === "playing" || state === "paused")) togglePause();
+    });
+    window.addEventListener("keyup", event => keys.delete(event.key.toLowerCase()));
+    window.addEventListener("blur", () => keys.clear());
+    startButton.addEventListener("click", () => state === "paused" ? togglePause() : startGame());
+    pauseButton.addEventListener("click", togglePause);
+    soundButton.addEventListener("click", () => {
+        soundEnabled = !soundEnabled;
+        soundButton.textContent = soundEnabled ? "♫" : "♪";
+        soundButton.setAttribute("aria-label", soundEnabled ? "Matikan suara" : "Nyalakan suara");
+    });
+    document.querySelectorAll(".touch-button").forEach(button => {
+        const direction = button.dataset.dir;
+        button.addEventListener("pointerdown", event => { event.preventDefault(); keys.add(direction); button.setPointerCapture(event.pointerId); });
+        const release = () => keys.delete(direction);
+        button.addEventListener("pointerup", release);
+        button.addEventListener("pointercancel", release);
+        button.addEventListener("lostpointercapture", release);
+    });
+    const fireButton = document.getElementById("fireButton");
+    fireButton.addEventListener("pointerdown", event => { event.preventDefault(); keys.add("space"); fireButton.setPointerCapture(event.pointerId); });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(name => fireButton.addEventListener(name, () => keys.delete("space")));
+
+    resize();
+    createStars();
+    updateHud();
+    requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
